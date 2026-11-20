@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>三语译 · 接口测试</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f6f7f3;
+      --ink: #192520;
+      --muted: #4d6058;
+      --line: #c5d0c8;
+      --field-line: #819187;
+      --accent: #165b48;
+      --accent-hover: #114936;
+      font-family: system-ui, sans-serif;
+      background: var(--page);
+      color: var(--ink);
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    ::selection { background: #c4e3d4; color: var(--ink); }
+
+    main {
+      width: min(54rem, calc(100% - 2rem));
+      margin: clamp(2rem, 7vh, 4rem) auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: .5rem 1rem;
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 3.5vw, 2rem);
+      line-height: 1.25;
+    }
+
+    code, #request-status {
+      color: var(--muted);
+      font-size: .87rem;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-areas: "languages languages" "source result" "actions result";
+      gap: 1.2rem;
+    }
+
+    .languages {
+      grid-area: languages;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 1.2rem;
+    }
+
+    .source { grid-area: source; }
+    .result { grid-area: result; }
+
+    label {
+      display: grid;
+      align-content: start;
+      gap: .42rem;
+      min-width: 0;
+      font-size: .9rem;
+      font-weight: 650;
+    }
+
+    select, textarea, button {
+      border: 1px solid var(--field-line);
+      border-radius: .35rem;
+      font: inherit;
+    }
+
+    select, textarea {
+      width: 100%;
+      background: #fff;
+      color: var(--ink);
+      font-size: 1rem;
+      font-weight: 400;
+      caret-color: var(--accent);
+    }
+
+    select { min-height: 2.75rem; padding: .4rem .55rem; }
+
+    textarea {
+      min-height: 11rem;
+      padding: .7rem .8rem;
+      line-height: 1.6;
+      resize: vertical;
+    }
+
+    textarea::placeholder { color: var(--muted); opacity: 1; }
+    textarea[readonly] { background: #eef2ec; }
+
+    .actions {
+      grid-area: actions;
+      display: flex;
+      align-items: center;
+      gap: .9rem;
+    }
+
+    button {
+      min-height: 2.75rem;
+      padding: .45rem 1.1rem;
+      border-color: var(--accent);
+      background: var(--accent);
+      color: #fff;
+      font-weight: 650;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    button:hover:not(:disabled) { background: var(--accent-hover); }
+    button:disabled { opacity: .65; cursor: wait; }
+    #request-status { overflow-wrap: anywhere; }
+
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 3px;
+    }
+
+    @media (max-width: 40rem) {
+      form {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas: "languages" "source" "actions" "result";
+      }
+
+      textarea { min-height: 9rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>三语译 · 接口测试</h1>
+      <code>POST /translate</code>
+    </header>
+    <form id="translate-form" action="./translate" method="post">
+      <div class="languages">
+        <label>源语言
+          <select name="from">
+            <option value="zh-CN" selected>简体中文</option>
+            <option value="en" lang="en">English</option>
+            <option value="ja" lang="ja">日本語</option>
+          </select>
+        </label>
+        <label>目标语言
+          <select name="to">
+            <option value="zh-CN">简体中文</option>
+            <option value="en" lang="en">English</option>
+            <option value="ja" lang="ja" selected>日本語</option>
+          </select>
+        </label>
+      </div>
+      <label class="source">原文
+        <textarea name="text" rows="6" placeholder="你好" dir="auto"></textarea>
+      </label>
+      <div class="actions">
+        <button type="submit">翻译</button>
+        <output id="request-status" role="status"></output>
+      </div>
+      <label class="result">译文
+        <textarea id="translation" rows="6" readonly dir="auto"></textarea>
+      </label>
+    </form>
+    <noscript><p>启用 JavaScript 后可从此页发送测试请求。</p></noscript>
+  </main>
+  <script type="module">
+    const form = document.getElementById("translate-form");
+    const button = form.querySelector("button");
+    const sourceLanguage = form.elements.namedItem("from");
+    const source = form.elements.namedItem("text");
+    const requestStatus = document.getElementById("request-status");
+    const translation = document.getElementById("translation");
+
+    source.lang = sourceLanguage.value;
+    sourceLanguage.addEventListener("change", () => {
+      source.lang = sourceLanguage.value;
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      requestStatus.textContent = "请求中…";
+      translation.value = "";
+
+      const payload = Object.fromEntries(new FormData(form));
+      try {
+        const response = await fetch(form.action, {
+          method: form.method,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await response.json().catch(() => null);
+
+        requestStatus.textContent = "HTTP " + response.status;
+        if (response.ok && typeof result?.translation === "string") {
+          translation.lang = payload.to;
+          translation.value = result.translation;
+          requestStatus.textContent += " · " + result.status;
+        } else if (typeof result?.error === "string") {
+          translation.lang = "en";
+          translation.value = result.error;
+        } else {
+          translation.lang = "zh-CN";
+          translation.value = "服务返回了无法读取的响应。";
+        }
+      } catch {
+        requestStatus.textContent = "无法连接翻译服务。";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

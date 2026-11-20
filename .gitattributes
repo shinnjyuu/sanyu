@@ -1,0 +1,2 @@
+*.sh text eol=lf
+scripts/firefox-models.txt text eol=lf
